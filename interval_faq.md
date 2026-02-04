@@ -287,3 +287,25 @@ The paper must pick one.
 **Q50: What would cause you to reject your own paper?**
 
 > If I realized that this is not a primitive and is better represented as an unbounded Integer.
+
+---
+
+To answer that we have to first define what `ranged` is supposed to do and mean. Because there are 2 conflicting models:
+
+* Ranged as Finite, Stepped, Scaled, Bounded Integer: Takes Integer as Input, stores the values as integers and outputs an Integer, so this `ranged(start = 0, stop, step = 1, scale = 1)` would be an Integer that does Compile Time Checks to guarantee every path is valid. It'd be a disappearing "type" because it disappears the moment it compiles. It'd use the most appropriate integer for the range, eg. if `start` or `end` is negative then it'd use `unsigned integer`. The following `ranged(100_000, 150_000)` would be stored as 4 byte unsigned integer. 
+
+* Ranged as Finite, Bounded State, Primitive: Takes ANY primitive as Input, stores the values with the minimum amount of bits necessary and outputs a ranged value, so this `ranged(values)` It's not possible to do operations with another primitive and ranged values can only do operations with ranged values of the same type: 
+```py
+RGB: ranged('R', 'G', 'B') = 'G'
+CYMK: ranged('C', 'Y', 'M', 'K') = 'Y'
+
+pixel_rgb: RGB = 'R' 
+pixel_cymk: RGB = 'R' 
+developer_mistake = pixel_rgb + pixel_cymk # Won't compile different types. 
+``` 
+ranged with no value `ranged()` is `None` and `ranged(3.1415)` is a constant, which is used as a 0 bit. It's possible to define subranges from other ranges of values and craeting super and sub ranges. This allows CompileTime safety as well due to all possible paths being traversed as well as bitpacking to be possible `let nucleotoide = ranged('A','C','G','T')` would be stored within just 2 bits. This is a modern interpretation of Ada type system, for quick reference: https://learn.adacore.com/ 
+
+All those 2 are valid and do well exist in Ada programming language, with different names and different aplications, most of which are created by the programmer is a `type`.
+
+
+

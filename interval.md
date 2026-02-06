@@ -421,5 +421,226 @@ x.count()       // Returns (100-10)/5 + 1 = 19
 
 ---
 
+# Mathematical Proofs for Interval Type System
+
+## 1. Foundational Properties
+
+### 1.1 Well-Formedness
+**Theorem (Interval Validity)**: An interval is well-formed if and only if:
+```
+∀ interval(start, stop, step, exponent):
+  step > 0 ⟹ start ≤ stop
+  step < 0 ⟹ stop ≤ start  
+  step = 0 ⟹ start = stop
+```
+
+**Proof obligation**: Show that all valid interval constructions satisfy these invariants.
+
+### 1.2 Value Membership
+**Theorem (Membership Test)**: A value `v` belongs to interval `I(start, stop, step, exponent)` iff:
+```
+v ∈ I ⟺ ∃k ∈ ℤ: v = start + k·step ∧ 
+                  ((step > 0 ∧ start ≤ v ≤ stop) ∨
+                   (step < 0 ∧ stop ≤ v ≤ start) ∨
+                   (step = 0 ∧ v = start = stop))
+```
+
+## 2. Arithmetic Operation Soundness
+
+### 2.1 Addition
+**Theorem (Addition Bounds)**: For intervals `A[a₁, a₂, sₐ]` and `B[b₁, b₂, sᵦ]`:
+```
+A + B = C[c₁, c₂, sc] where:
+  c₁ = a₁ + b₁
+  c₂ = a₂ + b₂
+  sc = gcd(sₐ, sᵦ)
+```
+
+**Proof**: 
+1. Show `∀x ∈ A, ∀y ∈ B: x + y ∈ [c₁, c₂]`
+2. Show step preservation: If `x ≡ r₁ (mod sₐ)` and `y ≡ r₂ (mod sᵦ)`, then `x + y ≡ r₃ (mod gcd(sₐ, sᵦ))`
+3. Prove minimality of resulting interval
+
+### 2.2 Subtraction
+**Theorem (Subtraction Bounds)**: 
+```
+A - B = C[c₁, c₂, sc] where:
+  c₁ = a₁ - b₂
+  c₂ = a₂ - b₁
+  sc = gcd(sₐ, sᵦ)
+```
+
+### 2.3 Multiplication
+**Theorem (Multiplication Bounds)**:
+```
+A × B = C[c₁, c₂, sc] where:
+  c₁ = min(a₁b₁, a₁b₂, a₂b₁, a₂b₂)
+  c₂ = max(a₁b₁, a₁b₂, a₂b₁, a₂b₂)
+  sc = gcd(sₐ·all_B_values, sᵦ·all_A_values) when finite, else degrades
+```
+
+**Proof obligation**: Handle sign changes and prove tightness of bounds.
+
+### 2.4 Division (Non-Zero Divisor)
+**Theorem (Division Safety)**: Division `A / B` is defined iff `0 ∉ B`.
+
+**Theorem (Division Bounds)**: When `0 ∉ B`:
+```
+A / B = C[c₁, c₂] where:
+  candidates = {a₁/b₁, a₁/b₂, a₂/b₁, a₂/b₂}
+  c₁ = ⌊min(candidates)⌋
+  c₂ = ⌈max(candidates)⌉
+```
+
+### 2.5 Modulo
+**Theorem (Modulo Bounds)**: For `A % B` where `0 ∉ B`:
+```
+A % B = C[0, max(|b₁|, |b₂|) - 1, 1]
+```
+
+**Proof**: Show `∀a ∈ A, ∀b ∈ B\{0}: 0 ≤ |a % b| < |b|`
+
+## 3. Exponent Arithmetic
+
+### 3.1 Exponent Addition (Multiplication)
+**Theorem (Exponent Combination)**:
+```
+A[eₐ] × B[eᵦ] = C[eₐ + eᵦ]
+
+Semantic value: (vₐ × 10^eₐ) × (vᵦ × 10^eᵦ) = (vₐ × vᵦ) × 10^(eₐ+eᵦ)
+```
+
+### 3.2 Exponent Subtraction (Division)
+**Theorem**: 
+```
+A[eₐ] / B[eᵦ] = C[eₐ - eᵦ]
+```
+
+### 3.3 Exponent Invariance
+**Theorem**: Addition and subtraction require matching exponents:
+```
+A[e] ± B[e] = C[e]  ✓
+A[e₁] ± B[e₂] where e₁ ≠ e₂  → requires normalization or type error
+```
+
+## 4. Storage Optimization Proofs
+
+### 4.1 Bit-Width Calculation
+**Theorem (Minimum Bits Required)**:
+```
+bits_required(I[start, stop, step]) = ⌈log₂(cardinality(I))⌉ where:
+  cardinality(I) = ⌊(stop - start) / |step|⌋ + 1
+```
+
+**Proof**: Show bijection between interval values and `[0, cardinality-1]`.
+
+### 4.2 Offset Encoding
+**Theorem (Constant Offset Optimization)**:
+```
+I[start, stop, step] can be stored as:
+  stored_value ∈ [0, (stop-start)/step]
+  actual_value = start + stored_value × step
+```
+
+**Proof**: Construct encoding/decoding functions and prove them as inverses.
+
+### 4.3 Storage Equivalence
+**Theorem**: 
+```
+interval(start=1000, stop=1255) ≡ u8 + constant_bias(1000)
+```
+
+Prove space equivalence and operation correctness.
+
+## 5. Type Safety Guarantees
+
+### 5.1 No Runtime Overflow
+**Theorem (Overflow Safety)**:
+```
+∀ operations op ∈ {+, -, ×, /}:
+  If A op B type-checks → result will not overflow at runtime
+```
+
+**Proof**: Show compile-time bounds checking is sufficient.
+
+### 5.2 Division-by-Zero Safety
+**Theorem**:
+```
+A / B type-checks ⟹ ∀ runtime values b ∈ B: b ≠ 0
+```
+
+### 5.3 Array Indexing Safety
+**Theorem (Bounds-Safe Indexing)**:
+```
+array[i] where i: interval(start=0, stop=len-1) → never panics
+```
+
+## 6. Step Preservation
+
+### 6.1 GCD Step Rule
+**Theorem**: For arithmetic operations:
+```
+step(A op B) = gcd(step(A), step(B)) for op ∈ {+, -}
+```
+
+**Proof**: Use Bézout's identity to show all combinations are reachable.
+
+### 6.2 Multiplication Step Degradation
+**Theorem**: 
+```
+step(A × B) = gcd(sₐ × all_values(B), sᵦ × all_values(A))
+```
+
+**Proof obligation**: Show when this becomes intractable and requires degradation to `isize`.
+
+## 7. Comparative Properties
+
+### 7.1 Compile-Time Decidability
+**Theorem**: Comparisons between disjoint intervals are compile-time constant:
+```
+A[a₁, a₂] < B[b₁, b₂] where a₂ < b₁ ⟹ always true
+A[a₁, a₂] > B[b₁, b₂] where a₁ > b₂ ⟹ always true
+```
+
+## 8. Conversion and Casting
+
+### 8.1 Subtype Relationship
+**Theorem (Safe Widening)**:
+```
+interval[a₁, a₂, s] <: interval[b₁, b₂, s] iff:
+  b₁ ≤ a₁ ∧ a₂ ≤ b₂ ∧ s divides step
+```
+
+### 8.2 Saturation Correctness
+**Theorem**:
+```
+saturate: interval[a₁, a₂] → interval[b₁, b₂]
+saturate(v) = clamp(v, b₁, b₂)
+```
+
+### 8.3 Wrapping Correctness
+**Theorem**:
+```
+wrap: interval[a₁, a₂] → interval[b₁, b₂]
+wrap(v) = b₁ + ((v - b₁) mod (b₂ - b₁ + 1))
+```
+
+## 9. Completeness Properties
+
+### 9.1 Precision Preservation
+**Theorem**: Operations preserve maximum precision:
+```
+result_interval = smallest_safe_interval(all_possible_results)
+```
+
+**Proof**: Show that the computed bounds are both necessary and sufficient.
+
+### 9.2 Degradation Minimization
+**Theorem**: Type degrades to `isize` only when:
+```
+1. Bounds cannot be statically determined, OR
+2. Resulting cardinality exceeds machine limits, OR  
+3. Step pattern becomes irregular
+```
 
 
